@@ -1,0 +1,6 @@
+import cv2
+
+if __name__ == '__main__':
+    print('asdf: ')
+    a = cv2.waitKey(1)
+    print(a)
