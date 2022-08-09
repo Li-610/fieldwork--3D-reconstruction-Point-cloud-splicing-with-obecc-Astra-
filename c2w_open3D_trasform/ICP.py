@@ -1,53 +1,63 @@
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 import open3d as o3d
-from creat_c2w import *
-from mix_PointCloud import *
+from global_registration import *
+
 
 def ICP(source, target, trans_init):
-    threshold = 0.1
+    threshold = 40
 
     print(':: Initial alignment: ')
     evaluation = o3d.pipelines.registration.evaluate_registration(source, target, threshold, trans_init)
-    print('   ' + evaluation)
-    print(':: Apply point to point ICP to point cloud ')
+    print(evaluation)
 
     print(':: Initial tansformation matrix:')
-    print('   ' + trans_init)
+    print(trans_init)
 
+    print(':: Apply point to point ICP to point cloud ')
     icp_p2p = o3d.pipelines.registration.registration_icp(
         source, target, threshold, trans_init,
         o3d.pipelines.registration.TransformationEstimationPointToPoint(),
-        o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration = 600)
+        o3d.pipelines.registration.ICPConvergenceCriteria(max_iteration = 1000)
     )
             
     print('=======================')
     print(icp_p2p)
     print(':: Transformation matrix is:')
-    print('   ' + icp_p2p.transformation)
+    print(icp_p2p.transformation)
 
-    source.transform(icp_p2p.transformation)
-    print(':: Finish transformation for point cloud')
-    print('=======================')
-
-    return source + target
+    return icp_p2p
 
 if __name__ == '__main__':
-    points = read_ply('data/trash_bin')
+    from creat_c2w import *
+    from mix_PointCloud import write_ply
 
-    c2w = creat_c2w('data/trash_bin', points[0], 21)
-    points[0].transform(c2w)
-    target = points[0].voxel_down_sample(voxel_size = 0.05)
+    voxel_size = 100
+    points = read_ply('data/dinning_room2')
 
-    c2w = creat_c2w('data/trash_bin', points[1], 22)
-    #points[1].transform(c2w)
-    #pcd = points[0] + points[1]
-    #pcd = ICP(points[1], points[0], np.eye(4))
+    target = points[2]
 
-    source = points[1].voxel_down_sample(voxel_size = 0.05)
-    pcd = ICP(source, target, c2w)
+    source = points[3]
+
+    source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source, target, voxel_size)
+    result = execute_global_registration(source_down, target_down, source_fpfh,
+                                target_fpfh, voxel_size)
+    print('Global registration finish\n\n')
+
+    target = target.voxel_down_sample(10)
+    source = source.voxel_down_sample(10)
+
+    print('Iterative Closest Point registration start')
+    icp_p2p = ICP(source, target, result.transformation)
 
     #print('-----------------------------')
     #print(np.asarray(pcd.points))
 
+    source.transform(icp_p2p.transformation)
 
-    o3d.visualization.draw_geometries([pcd], width = 1000, height = 600)
-    write_ply(pcd, 'trash_bin')
+    o3d.io.write_point_cloud('log/ICP/target.ply', target)
+    o3d.io.write_point_cloud('log/ICP/source.ply', source)
+
+    o3d.visualization.draw_geometries([target, source], width = 1000, height = 600)
+    write_ply([target, source])

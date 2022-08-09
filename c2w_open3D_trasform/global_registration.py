@@ -1,7 +1,9 @@
+import os
+os.environ["CUDA_VISIBLE_DEVICES"] = "0"
+
 import open3d as o3d
 import numpy as np
-from mix_PointCloud import *
-from creat_c2w import *
+
 
 def preprocess_point_cloud(pcd, voxel_size):
     print(":: Downsample with a voxel size %.3f." % voxel_size)
@@ -29,13 +31,14 @@ def prepare_dataset(source, target, voxel_size):
     target_down, target_fpfh = preprocess_point_cloud(target, voxel_size)
     return source_down, target_down, source_fpfh, target_fpfh
 
+#little slower but result better
 def execute_global_registration(source_down, target_down, source_fpfh,
                                 target_fpfh, voxel_size):
     distance_threshold = voxel_size * 1.5
     print(":: RANSAC registration on downsampled point clouds.")
     print("   Since the downsampling voxel size is %.3f," % voxel_size)
     print("   we use a liberal distance threshold %.3f." % distance_threshold)
-    trasnformation = o3d.pipelines.registration.registration_ransac_based_on_feature_matching(
+    transformation = o3d.pipelines.registration.registration_ransac_based_on_feature_matching(
         source_down, target_down, source_fpfh, target_fpfh, True,
         distance_threshold,
         o3d.pipelines.registration.TransformationEstimationPointToPoint(False),
@@ -46,11 +49,10 @@ def execute_global_registration(source_down, target_down, source_fpfh,
                 distance_threshold)
         ], o3d.pipelines.registration.RANSACConvergenceCriteria(100000, 0.999))
     
-    print(trasnformation)
+    return transformation
 
-    result = [target, source.trasform(trasnformation)]
-    return result
-
+#faster but get a worse result
+'''
 def execute_fast_global_registration(source_down, target_down, source_fpfh,
                                      target_fpfh, voxel_size):
     distance_threshold = voxel_size * 0.5
@@ -63,25 +65,33 @@ def execute_fast_global_registration(source_down, target_down, source_fpfh,
 
     print(result)
 
-    point_cloud = [target, source.transform(result.transformation)]
-    return point_cloud
-
+    return result
+'''
 
 if __name__ == '__main__':
-    voxel_size = 0.05
-    points = read_ply('data/trash_bin')
+    from mix_PointCloud import read_ply
+    from creat_c2w import *
 
-    c2w = creat_c2w('data/trash_bin', points[0], 21)
+    voxel_size = 100
+    points = read_ply('data/dinning_room2')
+
+    c2w = creat_c2w('data/dinning_room2', points[0], 21)
     target = points[0].transform(c2w)
 
-    c2w = creat_c2w('data/trash_bin', points[1], 22)
+    c2w = creat_c2w('data/dinning_room2', points[1], 22)
     source = points[1].transform(c2w)
 
     print('===============')
+    print(':: Start data prepare')
     source_down, target_down, source_fpfh, target_fpfh = prepare_dataset(source, target, voxel_size)
-    result = execute_fast_global_registration(source_down, target_down, source_fpfh,
+
+    print(':: Global registration start')
+    result = execute_global_registration(source_down, target_down, source_fpfh,
                                 target_fpfh, voxel_size)
-    print('Global registration finish')
+    print(':: Global registration finish\n\n')
     
-    write_ply(result)
-    o3d.visualization.draw_geometries(result, width = 1000, height = 600)
+    source.transform(result.transformation)
+    o3d.io.write_point_cloud('log/global_registration/target.ply', target)
+    o3d.io.write_point_cloud('log/global_registration/source.ply', source)
+
+    o3d.visualization.draw_geometries([target, source], width = 1000, height = 600)
