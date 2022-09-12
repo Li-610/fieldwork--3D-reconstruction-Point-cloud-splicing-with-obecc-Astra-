@@ -5,9 +5,13 @@ import csv
 from itertools import count
 import numpy as np
 
+
+csv.field_size_limit(500 * 1024 * 1024)
+
 def image_data_loader(path, image_ID):
     read_file = []
     file_path = os.path.join(path,'images.txt')
+    
 
     f = open(file_path,'r')
     d = csv.reader(f)
@@ -46,7 +50,7 @@ def creat_c2w(path, point, ID):
 if __name__ == '__main__':
     #read_files()
 
-    path = 'data/dinning_room2'
+    path = 'data/flower_bed10'
     
     poit_cloud = []
     pcd_file = os.listdir(path)

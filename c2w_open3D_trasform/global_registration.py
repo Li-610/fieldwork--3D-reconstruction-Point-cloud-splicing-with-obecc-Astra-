@@ -73,13 +73,13 @@ if __name__ == '__main__':
     from creat_c2w import *
 
     voxel_size = 100
-    points = read_ply('data/dinning_room2')
+    points = read_ply('data/dinning_room3')
 
-    c2w = creat_c2w('data/dinning_room2', points[0], 21)
-    target = points[0].transform(c2w)
+    c2w = creat_c2w('data/dinning_room3', points[0], 1)
+    target = points[2].transform(c2w)
 
-    c2w = creat_c2w('data/dinning_room2', points[1], 22)
-    source = points[1].transform(c2w)
+    c2w = creat_c2w('data/dinning_room3', points[1], 2)
+    source = points[3].transform(c2w)
 
     print('===============')
     print(':: Start data prepare')

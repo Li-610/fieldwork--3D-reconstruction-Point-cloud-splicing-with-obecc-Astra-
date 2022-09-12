@@ -1,2 +1,2 @@
 
-    print(':: Global registration finish\n\n')
+        point_cloud += point
